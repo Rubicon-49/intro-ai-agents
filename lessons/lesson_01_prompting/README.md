@@ -1,0 +1,175 @@
+# Introduction
+
+Starting from a minimal working setup that sends messages to an LLM (Large Language Model), we will extend the system step-by-step into an interactive command-line tool. As a running example, we’ll build an assistant for a financial analyst who needs to optimize a stock portfolio.
+
+## 1. A Simple LLM API Call Using `litellm`
+
+The initial example (`simple_llm.py`) demonstrates how to send a basic message to an LLM using the [`litellm`](https://github.com/BerriAI/litellm) library -- a lightweight Python wrapper for API's such as OpenAI, Anthropic, and others. It provides the minimal foundationon which the later, more interactive components will be built.
+
+The code:
+
+1. Loads your API key securely from a `.env` file.
+2. Defines a helper function that calls an LLM.
+3. Send a short, role-based message sequence.
+4. Prints the model's response.
+
+Let's break down the code piece by piece:
+
+## 1.1 Load environment variables
+
+We use the function `load_dotenv()` [python-dotenv](https://pypi.org/project/python-dotenv/) to load environment variables in the the `.env` file and add them inside your system's environment. `os.getenv("OPEN_API_KEY")`retrieves your `OPEN_API_KEY` credential so you don't need to hardcode it in your code.
+
+```python
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+api_key = os.getenv("OPENAI_API_KEY")
+
+```
+
+## 1.2 Import the LLM library
+
+'litellm' provides a unified interface for multiple LLM providers. The `completion` function sends the message, model name and other parameters and receives structured responses from the model.
+
+```python
+from litellm import completion
+```
+
+## 1.3 Define a response function
+
+This function is the core interface between your Python program and the model. It accepts a sequence of messages and passes them to the model specified by `model="openai/gpt-4o"`. The call to `completion(...)` returns a structured object containing one or more candidate responses. Think of `generate_response()` as a thin adapter between your application logic and the language model API - it hides the details of the API call, leaving you with a clean, single-purpose interface.
+
+```python
+from typing import List, Dict
+
+def generate_response(messages: List[Dict]) -> str:
+    """Call LLM to get response"""
+    response = completion(
+        model="openai/gpt-4o", 
+        messages=messages, 
+        max_tokens=1024
+    )
+```
+
+## 1.4 Create the conversation context
+
+We construct the conversation context we send to the model. Each message explicitly declares a `role` - either `"system"`, `"user"`, or `"assistant"` - and the associated content.
+
+- The *system message* serves as a high-level instruction that shapes the model's behavior or persona.
+- The *user message* expresses the actual query or task. Together, they form a minimal dialogue history that the model will condition on when generating its answer.
+- The *assistant message* (not used yet in this simple example) is typically added during multi-turn interactions. It stores the model's previous replies, forming part of the ongoing dialogue history. When you send the next query, including these assistant messages helps the model maintain coherence and remember what it sai earlier.
+
+This message-based interface mirrors how models like GPT-4 process context: rather than a single flat prompt, they interpret a structured sequence of conversational turns, allowing more natural control over role, tone, and content.
+
+```python
+messages = [
+    {
+        "role": "system", 
+        "content": (
+            "You are a quantitative financial analyst with expertise in risk management "
+            "and portfolio optimization. You always justify your recommendations clearly."
+        ),
+    },
+    {
+        "role": "user",
+        "content": (
+            "Given a small investment portfolio with Apple, Tesla, and Microsoft, "
+            "provide a concise risk assessemnt and one suggestion for diversivication."
+        ),
+    },
+]
+```
+
+## 1.5 Get and print the response
+
+The response contains the generated text in `choices[0].message.content`. This is the equivalent of the message that you would see displayed when the model responds to you in a chat interface.
+
+```python
+response = generate_response(messages)
+print(response)
+```
+
+## 1.6 Extending with JSON for structured prompts
+
+Instead of passing free-form text, we can encode our request in JSON. This pattern becomes essential when we start building agents, where messages often carry not only natural language but also machine-readable context such as tool specifications, intermediate results, or parsed user intents.
+
+```python
+import json
+
+portfolio_summary = {
+    "portfolio_id": "123-XYZ",
+    "description": "Client investment portfolio summary",
+    "holdings": [
+        {"symbol": "AAPL", "shares": 25, "price": 180.25},
+        {"symbol": "TSLA", "shares": 10, "price": 240.10},
+        {"symbol": "MSFT", "shares": 15, "price": 330.45},
+    ],
+    "goal": "Provide a concise risk assessment and suggest diversification improvements."
+}
+
+messages = [
+    {
+        "role": "system",
+        "content": (
+            "You are a quantitative financial analyst with expertise in risk management "
+            "and portfolio optimization. You always justify your recommendations clearly."
+        ),
+    },
+    {
+        "role": "user",
+        "content": f"Analyze the following portfolio: {json.dumps(portfolio_summary)}",
+    },
+]
+
+response = generate_response(messages)
+print(response)
+
+```
+
+The model isn't just reading text - it's interpreting structured data.
+
+- **Structured communication**  
+  The JSON object conveys rich, explicit information - holdings, quantities, prices - in a way that's unambiguous and machine-readable. Unlike prose, the structure encodes relationships between entities, which the model can exploit for reasoning.
+
+- **Context with intent**  
+  The user message pairs the data with a clear goal. The model thus receives both the state (the portfolio) and the task (the analysis).
+
+- **Relevance to agents**  
+  In agent-based systems, this same mechanism generalizes naturally. The *portfolio* could be replaced with the result of a database query. The *goal* could be the next step in a reasoning chain. The model's output could, in turn, be parsed back as JSON and used by another component.
+
+## 1.6 Using TypedDict
+
+To make the code both sel-documenting and friendly to static analyzers like Pylance, we introduce TypedDict types for the response structure:
+
+```python
+class Message(TypedDict):
+    role: str
+    content: str
+
+class Choice(TypedDict):
+    message: Message
+
+class CompletionResponse(TypedDict):
+    choices: List[Choice]
+
+```
+
+These type definitions describe the expected shape of the JSON object return by the model, without changing its runtime behavior. `TypedDict`gives the same ergonomics as working with a normal Python `dict`, but adds static structure.
+
+## 1.7 Why to use `["key"]`instead of `.attribute`
+
+Above we wrote
+
+```python
+response.choices[0].message.content
+
+```
+
+However, `TypedDict` represents dictionary keys, not attributes. Therefore, correct access must be bracket notation:
+
+```python
+response["choices"][0]["message"]["content"]
+```
+
+This matches how dictionaries behave at runtime and satisfies Pylance's strict type checking. If you need dot.style access in the future, use a data model library like Pydantic or dataclasses, which provide attribute semantics.

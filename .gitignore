@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+ai_agents/
+data/
+.env
+process.log

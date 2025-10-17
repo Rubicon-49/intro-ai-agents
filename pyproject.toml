@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai_agents"
+version = "0.1.0"
+authors = [{name = "Martin Diergardt", email = "martin.diergardt.2@gmail.com" }]
+license = {text = "MIT"}
+description = "A short introduction of how to build AI agents with Python. As a running example, we'll build an assistant for a financial analyst who needs to optimize a stock portfolio."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "yfinance>=0.2.40"
+]
+
+# --- Optional development dependencies ---
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2.0",
+    "pytest-asyncio>=0.23.0",
+    "mypy>=1.10.0",
+    "ruff<=0.5.0",
+    "black>=24.4.0"
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers --strict-config -vv"
+testpaths = ["tests"]
+filterwarnings = [
+    # Ignore known harmless SWIG deprecation warnings from third-party libs
+    "ignore:.*SwigPyObject.*:DeprecationWarning",
+    "ignore:.*SwigPyPacked.*:DeprecationWarning"
+]

@@ -1,0 +1,11 @@
+{
+    "portfolio": {
+        "portfolio_id": "123-XYZ",
+        "description": "Client investment portfolio summary",
+        "holdings": [
+            {"symbol": "AAPL", "shares": 25},
+            {"symbol": "TSLA", "shares": 10},
+            {"symbol": "MSFT", "shares": 15}
+        ]
+    }
+}
