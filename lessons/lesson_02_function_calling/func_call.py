@@ -9,6 +9,12 @@ from pathlib import Path
 from typing import cast, List, Dict, Any, TypedDict
 from litellm import completion
 from dotenv import load_dotenv
+from tools import (
+    list_files,
+    read_structured_file,
+    read_text_file,
+    terminate
+)
 
 # -----------------------------------------------------------------------------
 # Define structural types for strong static checking
@@ -28,6 +34,7 @@ class CompletionResponse(TypedDict):
 # Logging Configuration
 # -----------------------------------------------------------------------------
 log_dir = Path(__file__).resolve().parent / "logs"
+log_dir.mkdir(exist_ok=True)
 log_file = log_dir / f"agent_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
 
 logging.basicConfig(
@@ -51,6 +58,10 @@ for old_log in log_files[5:]:
 
 load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    logger.error("OPENAI_API_KEY missing. Please set it in your environment or .env file.")
+    sys.exit(1)
+
 
 def load_configs() -> tuple[Dict[str, Any], Dict[str, Any]]:
     """
@@ -61,7 +72,7 @@ def load_configs() -> tuple[Dict[str, Any], Dict[str, Any]]:
     base_dir = Path(__file__).resolve().parent
         
     json_path = base_dir / "config.json"
-    toml_path = base_dir.parent.parent / "config.toml"
+    toml_path = base_dir.parent.parent / "config.toml" # two levels up
         
     try:
         with open(json_path, "r", encoding="utf-8") as f:
@@ -79,91 +90,13 @@ def load_configs() -> tuple[Dict[str, Any], Dict[str, Any]]:
         
     return json_config, toml_config
 
-def get_data_path() -> Path:
-    """
-    Locate the shared 'data' directory at the project root.
-    Works even when running from 'lessons/lesson_02_function_calling/'.
-    """
-    base_dir = Path(__file__).resolve().parent
-    
-    data_path = base_dir.parent.parent / "data"
-    
-    if not data_path.exists():
-        logger.error(f"Data directory not found: {data_path}")
-        raise FileNotFoundError(f"Data directory not found: {data_path}")
-    
-    return data_path
-
-# -----------------------------------------------------------------------------
-# Tool Implementations
-# -----------------------------------------------------------------------------
-
-def list_files() -> list[str]:
-    """
-    List available financial data files in the root 'data' directory.
-    Returns filenames only (e.g., 'aapl_balance_sheet.json').
-    """
-    data_path = get_data_path()
-    files = [p.name for p in sorted(data_path.iterdir()) if p.is_file()]
-    logger.info(f"Files in {data_path}:\n" + "\n".join(files))
-    return files
-
-def read_structured_file(file_name: str) -> dict:
-    """
-    Read a structured data file (JSON or CSV) from the 'data' directory.
-    Returns parsed Python objects where possible.
-    """
-    data_path = get_data_path()
-    file_path = data_path / file_name
-    ext = file_path.suffix.lower()
-    
-    try:
-        if not file_path.exists():
-            return {"error": f"file '{file_name}' not found in {data_path}."}
-        
-        if ext == ".json":
-            return json.loads(file_path.read_text(encoding="utf-8"))
-        elif ext== ".csv":
-            import csv
-            with open(file_path, newline="", encoding="utf-8") as f:
-                reader = csv.DictReader(f)
-                return {"rows": list(reader)}
-        else:
-            return {"error": f"Unsupported structured format: {ext}"}
-            
-    except Exception as e:
-        logger.exception(f"Error reading structured file {file_name}")
-        return {"error": str(e), "file_name": file_name}
-    
-def read_text_file(file_name:str) -> str:
-    data_path = get_data_path()
-    file_path = data_path / file_name
-    ext = file_path.suffix.lower()
-    
-    try:
-        if not file_path.exists():
-            return f"Error: file '{file_path}' not found."
-        
-        if ext in {".txt", ".md"}:
-            return file_path.read_text(encoding="utf-8")
-        else:
-            return f"Unsupported text format: {file_name}"
-        
-    except Exception as e:
-        logger.exception(f"Error reading text file {file_name}")
-        return f"Error reading {file_name}: {e}"
-               
-def terminate(message: str) -> None:
-    """Terminate the agent loop and provide a summary message."""
-    logger.info(f"Termination message: {message}")
-
 # -----------------------------------------------------------------------------
 # Tool Registry
 # -----------------------------------------------------------------------------
  
 tool_functions = {
     "list_files": list_files,
-    "rread_structured_file": read_structured_file,
+    "read_structured_file": read_structured_file,
     "read_text_file": read_text_file,
     "terminate": terminate
 }
@@ -201,7 +134,7 @@ def run_agent(task: str, max_iterations: int):
 
     while iterations < max_iterations:
         iterations += 1
-        logger.info(f"--- Iternation {iterations} ---")
+        logger.info(f"--- Iteration {iterations} ---")
         
         messages = agent_rules + memory
         
@@ -225,7 +158,7 @@ def run_agent(task: str, max_iterations: int):
             tool_calls = message.get("tool_calls")
         
         except Exception as e:
-            logger.exception(f"Completetion error: {e}")
+            logger.exception(f"Completion error: {e}")
             break
           
         if tool_calls:
