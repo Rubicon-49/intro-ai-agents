@@ -11,11 +11,33 @@
     {
       "type": "function",
       "function": {
-        "name": "read_file",
-        "description": "Reads the content of a specified file in the directory.",
+        "name": "read_structured_file",
+        "description": "Read structured data (.json, .csv) from the data directory and return it as a parsed dictionary.",
         "parameters": {
           "type": "object",
-          "properties": { "file_name": { "type": "string" } },
+          "properties": { 
+            "file_name": { 
+                "type": "string",
+                "description": "Name of the structured data file."
+            }
+          },
+          "required": ["file_name"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "read_text_file",
+        "description": "Read unstructured text (.md, .txt) from the data directory and return it as plain text.",
+        "parameters": {
+          "type": "object",
+          "properties": { 
+            "file_name": { 
+                "type": "string",
+                "description": "Name of the text file."
+            }
+          },
           "required": ["file_name"]
         }
       }
