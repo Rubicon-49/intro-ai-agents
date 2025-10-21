@@ -38,7 +38,7 @@ def generate_response(messages: List[Dict[str, str]]) -> str:
     """
     Calls the LLM with the provided message sequence and returns its response text.
     """
-    response: CompletionResponse = cast(
+    response = cast(
         CompletionResponse,
         completion(
             model="openai/gpt-4o",
