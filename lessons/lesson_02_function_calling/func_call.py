@@ -53,7 +53,7 @@ for old_log in log_files[5:]:
     old_log.unlink(missing_ok=True)
     
 # -----------------------------------------------------------------------------
-# Utility: Load Configurations
+# Utility: Load Configurations and CLI Print Helpers
 # -----------------------------------------------------------------------------
 
 load_dotenv()
@@ -90,6 +90,18 @@ def load_configs() -> tuple[Dict[str, Any], Dict[str, Any]]:
         
     return json_config, toml_config
 
+def cli_info(msg: str):
+    """Print concise status messages to the console."""
+    click.echo(click.style(msg, fg="cyan"))
+    
+def cli_success(msg: str):
+    """Print success or completion messages."""
+    click.echo(click.style(msg, fg="green"))
+    
+def cli_warning(msg: str):
+    """Print warning or error messages."""
+    click.echo(click.style(msg, fg="yellow"))
+    
 # -----------------------------------------------------------------------------
 # Tool Registry
 # -----------------------------------------------------------------------------
@@ -134,6 +146,7 @@ def run_agent(task: str, max_iterations: int):
 
     while iterations < max_iterations:
         iterations += 1
+        cli_info(f"[{iterations}] Iteration:")
         logger.info(f"--- Iteration {iterations} ---")
         
         messages = agent_rules + memory
@@ -166,16 +179,32 @@ def run_agent(task: str, max_iterations: int):
             tool_name = tool_call["function"]["name"]
             tool_args = json.loads(tool_call["function"]["arguments"])
             
+            arg_str = ", ".join(f"{k}={v}" for k, v in tool_args.items()) or "no arguments"
+            cli_info(f"→ Calling tool {tool_name}({arg_str})")
+            
             logger.info(f"Executing tool: {tool_name} with args: {tool_args}")
             
             if tool_name == "terminate":
-                terminate(tool_args.get("message", ""))
+                terminate_msg = tool_args.get("message", "")
+                cli_success(f"💬 Terminated - {terminate_msg}")
+                terminate(terminate_msg)
                 break
             elif tool_name in tool_functions:
                 try:
                     result = {"result": tool_functions[tool_name](**tool_args)}
+                    # short line for console
+                    if tool_name == "list_files":
+                        cli_success(f"✅ Found {len(result["result"])} files")
+                    elif tool_name == "read_structured_file":
+                        res = result["result"]
+                        cli_success(f"✅ Data type: {res.get('type', '?')} ({res.get('file_name', '')})")
+                    elif tool_name == "read_text_file":
+                        cli_success(f"--> Text file read: {tool_args['file_name']}")
+                    else:
+                        cli_success(f"✅ Tool {tool_name} executed successfully.")
                 except Exception as e:
                     result = {"error": f"Error executing {tool_name}: {str(e)}"}
+                    cli_warning(f"⚠️  Error executing {tool_name}: {e}")
             else:
                 result = {"error": f"Unknown tool: {tool_name}"}
                 
@@ -193,6 +222,7 @@ def run_agent(task: str, max_iterations: int):
             break
     
     logger.info("Agent finished execution.")
+    cli_success("Agent finished exedution.")
     
 # -----------------------------------------------------------------------------
 # Entry Point
