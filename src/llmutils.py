@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from litellm import completion
 from dotenv import load_dotenv
+from typing import cast, TypedDict, List
 
 # ------------------------------------------------------------------
 # Load the .env file
@@ -18,14 +19,27 @@ api_key = os.environ.get("OPENAI_API_KEY")
 # Load config.toml dynamically
 # ------------------------------------------------------------------
 
-CFG_PATH = Path(__file__).parent / "config.toml"
+CFG_PATH = Path(__file__).parent.parent / "config.toml"
 CFG = toml.load(CFG_PATH)
 MODEL = CFG["general"].get("model", "gpt-3.5-turbo")
 TEMPERATURE = CFG["general"].get("temperature", 0)
 
+
 # ------------------------------------------------------------------
 # LLM interaction function
 # ------------------------------------------------------------------
+# Define structural types for strong static checking
+class Message(TypedDict):
+    role: str
+    content: str
+
+
+class Choice(TypedDict):
+    message: Message
+
+
+class CompletionResponse(TypedDict):
+    choices: List[Choice]
 
 
 def generate_response(
@@ -37,17 +51,20 @@ def generate_response(
     compatible with the OpenAI / ChatCompletion message schema.
     """
     try:
-        response = completion(
-            model=model,
-            messages=message,
-            temperature=temperature,
-            max_tokens=CFG["general"].get("max_tokens", 1024),
+        response = cast(
+            CompletionResponse,
+            completion(
+                model=model,
+                messages=message,
+                temperature=temperature,
+                max_tokens=CFG["general"].get("max_tokens", 1024),
+            ),
         )
         content = response["choices"][0]["message"]["content"]
         return content.strip()
     except Exception as e:
         print(f"Error during LLM call: {e}")
-    return content
+        raise
 
 
 # ----------------------------------

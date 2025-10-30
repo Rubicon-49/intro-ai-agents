@@ -1,0 +1,8 @@
+LICENSE
+README.md
+pyproject.toml
+src/ai_agents.egg-info/PKG-INFO
+src/ai_agents.egg-info/SOURCES.txt
+src/ai_agents.egg-info/dependency_links.txt
+src/ai_agents.egg-info/requires.txt
+src/ai_agents.egg-info/top_level.txt

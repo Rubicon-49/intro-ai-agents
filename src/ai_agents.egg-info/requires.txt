@@ -1,0 +1,12 @@
+litellm>=1.78.0
+toml>=0.10.2
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+yfinance>=0.2.40
+
+[dev]
+pytest>=8.2.0
+pytest-asyncio>=0.23.0
+mypy>=1.10.0
+ruff>=0.5.3
+black>=24.4.0

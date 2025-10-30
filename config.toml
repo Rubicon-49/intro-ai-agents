@@ -2,3 +2,31 @@
 chat_models = ["gpt-3.5-turbo", "gpt-4"]
 model = "gpt-3.5-turbo"
 temperature = 0
+[prompt]
+system_prompt = """
+You are a senior financial data analyst and Python engineer.
+You have access to balance sheets, income statements, cash flows,
+and two years of closing prices for several companies.
+"""
+
+user_prompt1 = """
+The function should use pandas and numpy only,
+be well-documented with a concise docstring,
+and return meaningful computed metrics or plots.
+After writing the function:
+    1. Write a short README.md section summarizing what the code does.
+    2. Write a minimal but clear unit test (pytest style)
+    that verifies its correctness on simple mock data.
+"""
+
+user_prompt2 = """
+Write a concise README.md section (in Markdown)
+describing the purpose of this function, the key concepts applied,
+and how to use it. Limit to 150 words.
+"""
+
+user_prompt3 = """
+Now write pytest-style unit tests for the function above.
+Include tests for expected behavior and one edge case.
+Output only the test code inside a ```python``` block.
+"""

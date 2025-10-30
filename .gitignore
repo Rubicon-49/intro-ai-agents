@@ -3,4 +3,4 @@ __pycache__/
 ai_agents/
 data/
 .env
-process.log
+*.log
